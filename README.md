@@ -105,7 +105,29 @@ python main_app.py
 
 #### 方式 2：Docker 部署（推荐）
 
-**前提条件：** Docker Engine 24+ 且已支持 Docker Compose V2。
+**前提条件：** Docker Engine 24+。命令 `docker-compose`（v1）或 `docker compose`（v2）任一可用。
+#### LoRA 训练容器
+
+训练需要 PyTorch（~3.5GB），不会随主服务自动启动，按需单独管理：
+
+```bash
+# 构建训练容器（首次或依赖变更时）
+docker-compose -f docker-compose.yml -f docker-compose.training.yml build lora-trainer
+
+# 启动训练容器（在后台运行）
+docker-compose -f docker-compose.yml -f docker-compose.training.yml up -d lora-trainer
+
+# 查看训练容器日志
+docker-compose -f docker-compose.training.yml logs -f lora-trainer
+
+# 查看训练 API 文档
+# http://localhost:8001/docs
+
+# 停止训练容器
+docker-compose -f docker-compose.yml -f docker-compose.training.yml down
+```
+
+#### 日常命令（API + 前端）
 
 ```bash
 # 1. 配置 API Key（将模板复制为实际配置文件）
@@ -113,13 +135,13 @@ cp backend/.env.example backend/.env
 # 编辑 backend/.env，填入你的 API Key
 
 # 2. 构建并启动
-docker compose up -d
+docker-compose up -d
 
 # 3. 查看日志
-docker compose logs -f
+docker-compose logs -f
 
 # 4. 停止服务
-docker compose down
+docker-compose down
 ```
 
 首次构建需要 1-3 分钟（下载 Python 基础镜像）。运行时目录（`assets/`、`models/`、`exports/`、`logs/`、`qc_reports/`）自动挂载到宿主机，容器销毁后数据不丢失。
@@ -128,8 +150,8 @@ docker compose down
 
 ```bash
 git pull
-docker compose build --no-cache
-docker compose up -d
+docker-compose build --no-cache
+docker-compose up -d
 ```
 
 服务默认运行在 `http://localhost:8000`，自动提供前端页面。

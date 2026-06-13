@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  # ── LoRA训练器（含 torch，按需启动） ──
+  lora-trainer:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        REQUIREMENTS_FILE: requirements.txt
+    container_name: ai-manga-lora-trainer
+    ports:
+      - "8001:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - LORA_TRAIN_MODE=local
+    volumes:
+      - ./assets:/app/assets
+      - ./models/lora:/app/models/lora
+      - ./exports:/app/exports
+      - ./logs:/app/logs
+      - ./qc_reports:/app/qc_reports
+    restart: unless-stopped
+    networks:
+      - default
+
+networks:
+  default:
+    name: ai-manga-studio_default

@@ -33,28 +33,3 @@ services:
     depends_on:
       - manga-studio
     restart: unless-stopped
-
-  # ── LoRA训练器（含 torch，按需启动） ──
-  lora-trainer:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      args:
-        REQUIREMENTS_FILE: requirements.txt
-    container_name: ai-manga-lora-trainer
-    ports:
-      - "8001:8000"
-    env_file:
-      - ./backend/.env
-    environment:
-      - LORA_TRAIN_MODE=local
-    volumes:
-      - ./assets:/app/assets
-      - ./models/lora:/app/models/lora
-      - ./exports:/app/exports
-      - ./logs:/app/logs
-      - ./qc_reports:/app/qc_reports
-    # 仅手动启动：docker compose --profile training up lora-trainer
-    profiles:
-      - training
-    restart: unless-stopped

@@ -1,56 +1,73 @@
 # 配音引擎：根据分镜脚本生成角色配音音频
+# 使用 MiMo Chat Completions API（OpenAI 兼容格式）
 
 import os
 import json
+import base64
 import requests
 from dotenv import load_dotenv
 
 load_dotenv()
 
 MIMO_API_KEY  = os.getenv("MIMO_API_KEY")
-MIMO_BASE_URL = os.getenv("MIMO_BASE_URL")
+MIMO_BASE_URL = os.getenv("MIMO_BASE_URL")  # https://api.xiaomimimo.com/v1
+
+HEADERS = {
+    "Authorization": f"Bearer {MIMO_API_KEY}",
+    "Content-Type":  "application/json"
+}
+
+
+# ── 内置音色列表（按 IP 卡语音语言/性别匹配） ──
+BUILTIN_VOICES = {
+    "zh_female": ["冰糖", "茉莉", "苏打"],
+    "zh_male":   ["白桦"],
+    "en_female": ["Mia", "Chloe"],
+    "en_male":   ["Milo", "Dean"]
+}
+DEFAULT_VOICE = "mimo_default"
+
 
 def load_ip_card(ip_id: str) -> dict:
     with open(f"config/ip_cards/{ip_id}.json", encoding="utf-8") as f:
         return json.load(f)
 
+
 def load_emotion_map() -> dict:
     with open("config/emotion_tts_map.json", encoding="utf-8") as f:
         return json.load(f)
 
-def build_tts_request(
-    dialogue: str,
-    emotion_tag: str,
-    voice_id: str,
-    duration: float,
-    emotion_map: dict
-) -> dict:
-    """
-    构建MiMo TTS请求体
-    将情绪标签转换为TTS指令
-    """
-    emotion_config = emotion_map.get(emotion_tag, {
-        "style": "平和自然",
-        "tags": []
-    })
 
-    style  = emotion_config["style"]
-    tags   = emotion_config["tags"]
+def _pick_voice(ip_card: dict) -> str:
+    """从 IP 卡语音配置中选择合适的预置音色"""
+    voice_config = ip_card.get("voice", {})
+    preferred = voice_config.get("voice_id", "")
+    if preferred and preferred not in ("custom", "default"):
+        return preferred
 
-    # 构建富文本指令：在台词中插入音频标签
-    tagged_text = dialogue
+    lang = voice_config.get("language", "zh")
+    gender = voice_config.get("gender", "female")
+    key = f"{lang}_{gender}"
+    pool = BUILTIN_VOICES.get(key, BUILTIN_VOICES["zh_female"])
+    return pool[0] if pool else DEFAULT_VOICE
+
+
+def _build_messages(dialogue: str, style: str, tags: list[str]) -> list[dict]:
+    """构建 Chat Completions messages"""
+    # user 消息：语气/风格指令
+    style_prompt = f"用{style}的语气朗读" if style else "自然朗读"
+
+    # assistant 消息：待合成的文本 + 音频标签
+    tagged = dialogue
     if tags:
-        tag_str    = "".join([f"<{t}>" for t in tags])
-        tagged_text = f"{tag_str}{dialogue}"
+        tag_str = "".join([f"<{t}>" for t in tags])
+        tagged = f"{tag_str}{dialogue}"
 
-    return {
-        "model":    "mimo-v2.5-tts-voiceclone",
-        "voice_id": voice_id,
-        "text":     tagged_text,
-        "style_prompt": style,
-        "speed":    1.0,
-        "target_duration": duration  # 对齐分镜时长
-    }
+    return [
+        {"role": "user",     "content": style_prompt},
+        {"role": "assistant", "content": tagged}
+    ]
+
 
 def generate_frame_audio(
     frame: dict,
@@ -60,40 +77,35 @@ def generate_frame_audio(
 ) -> str | None:
     """
     生成单帧配音
-    无台词帧返回None（留白/场景切换格）
+    无台词帧返回 None（留白/场景切换格）
     """
     dialogue = frame.get("dialogue")
     if not dialogue:
-        return None  # 无台词，跳过TTS
+        return None
 
-    voice_id     = ip_card["voice"]["voice_id"]
-    emotion_tag  = frame.get("emotion_tag", "平静")
+    emotion_tag = frame.get("emotion_tag", "平静")
+    emotion_cfg = emotion_map.get(emotion_tag, {"style": "平和自然", "tags": []})
 
-    payload = build_tts_request(
-        dialogue    = dialogue,
-        emotion_tag = emotion_tag,
-        voice_id    = voice_id,
-        duration    = frame["duration"],
-        emotion_map = emotion_map
-    )
+    voice = _pick_voice(ip_card)
+    messages = _build_messages(dialogue, emotion_cfg["style"], emotion_cfg["tags"])
 
-    headers = {
-        "Authorization": f"Bearer {MIMO_API_KEY}",
-        "Content-Type":  "application/json"
+    payload = {
+        "model": "mimo-v2.5-tts",
+        "messages": messages,
+        "audio": {"format": "mp3", "voice": voice}
     }
 
     response = requests.post(
-        f"{MIMO_BASE_URL}/tts/generate",
+        f"{MIMO_BASE_URL}/chat/completions",
         json=payload,
-        headers=headers,
+        headers=HEADERS,
         timeout=60
     )
     response.raise_for_status()
     result = response.json()
 
-    # 下载音频
-    audio_url  = result["audio_url"]
-    audio_data = requests.get(audio_url, timeout=30).content
+    audio_b64 = result["choices"][0]["message"]["audio"]["data"]
+    audio_data = base64.b64decode(audio_b64)
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, "wb") as f:
@@ -101,10 +113,44 @@ def generate_frame_audio(
 
     return output_path
 
+
+def ensure_voice_exists(ip_card: dict):
+    """
+    通过 VoiceDesign 模型创建定制声线（如需）
+    MiMo 的 VoiceDesign 通过 Chat Completions 调用，不需要预注册
+    """
+    voice_config = ip_card["voice"]
+    design_prompt = voice_config.get("design_prompt", "")
+    if not design_prompt:
+        print("[配音引擎] 使用预置音色，无需设计声线")
+        return
+
+    print(f"[配音引擎] 正在设计声线: {voice_config['voice_id']}...")
+    payload = {
+        "model": "mimo-v2.5-tts-voicedesign",
+        "messages": [
+            {"role": "user", "content": design_prompt},
+            {"role": "assistant", "content": "你好，我是新设计的声线。"}
+        ],
+        "audio": {"format": "wav", "voice": "mimo_default"}
+    }
+    resp = requests.post(
+        f"{MIMO_BASE_URL}/chat/completions",
+        json=payload,
+        headers=HEADERS,
+        timeout=30
+    )
+    if resp.status_code == 200:
+        print(f"[配音引擎] 声线设计成功: {voice_config['voice_id']}")
+    else:
+        print(f"[配音引擎] 声线设计失败: HTTP {resp.status_code}")
+        print(f"  使用预置音色作为后备")
+
+
 def generate_all_audio(script: dict) -> list[str | None]:
     """
     批量生成一集所有配音
-    返回音频路径列表（无台词帧为None）
+    返回音频路径列表（无台词帧为 None）
     """
     ip_id       = script["ip_id"]
     episode_num = script["episode_num"]
@@ -117,14 +163,13 @@ def generate_all_audio(script: dict) -> list[str | None]:
     emotion_map = load_emotion_map()
     audio_paths = []
 
-    # 如果声线尚未创建，先通过VoiceDesign初始化
     ensure_voice_exists(ip_card)
 
     print(f"[配音引擎] 开始生成 {len(script['frames'])} 帧配音...")
 
     for frame in script["frames"]:
-        fid       = frame["frame_id"]
-        out_path  = os.path.join(audio_dir, f"audio_{str(fid).zfill(3)}.mp3")
+        fid      = frame["frame_id"]
+        out_path = os.path.join(audio_dir, f"audio_{str(fid).zfill(3)}.mp3")
 
         if not frame.get("dialogue"):
             audio_paths.append(None)
@@ -148,33 +193,3 @@ def generate_all_audio(script: dict) -> list[str | None]:
     success = len([p for p in audio_paths if p])
     print(f"[配音引擎] 完成：{success}帧有效配音")
     return audio_paths
-
-def ensure_voice_exists(ip_card: dict):
-    """如果声线ID未创建，通过VoiceDesign初始化"""
-    voice_config = ip_card["voice"]
-    voice_id     = voice_config["voice_id"]
-
-    # 检查声线是否已注册
-    headers = {"Authorization": f"Bearer {MIMO_API_KEY}"}
-    resp    = requests.get(
-        f"{MIMO_BASE_URL}/voices/{voice_id}",
-        headers=headers,
-        timeout=10
-    )
-
-    if resp.status_code == 404:
-        # 声线不存在，通过VoiceDesign创建
-        print(f"[配音引擎] 声线 {voice_id} 不存在，正在创建...")
-        payload = {
-            "voice_id":     voice_id,
-            "model":        "mimo-v2.5-tts-voicedesign",
-            "description":  voice_config["design_prompt"]
-        }
-        create_resp = requests.post(
-            f"{MIMO_BASE_URL}/voices/design",
-            json=payload,
-            headers={**headers, "Content-Type": "application/json"},
-            timeout=30
-        )
-        create_resp.raise_for_status()
-        print(f"[配音引擎] 声线创建成功：{voice_id}")

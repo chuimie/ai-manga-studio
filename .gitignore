@@ -32,7 +32,8 @@ qc_reports/
 **/reference/*_dataset/
 **/reference/*.zip
 
-# 大文件
+# 测试脚本
+test_*.py
 *.safetensors
 *.pth
 *.bin

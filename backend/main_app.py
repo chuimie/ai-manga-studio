@@ -85,8 +85,11 @@ app.add_middleware(
 
 # 静态文件
 app.mount("/assets",   StaticFiles(directory="../assets"),   name="assets")
-app.mount("/css",      StaticFiles(directory="../frontend/css"), name="css")
-app.mount("/js",       StaticFiles(directory="../frontend/js"),  name="js")
+
+# 前端静态文件（Docker 中由 nginx 服务，本地开发模式需要）
+if os.path.isdir("../frontend"):
+    app.mount("/css", StaticFiles(directory="../frontend/css"), name="css")
+    app.mount("/js",  StaticFiles(directory="../frontend/js"),  name="js")
 
 # Agnes客户端
 agnes_client = OpenAI(

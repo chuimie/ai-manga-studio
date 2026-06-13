@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI漫剧IP孵化系统</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ════════ 侧边栏 ════════ -->
+<nav class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">🎬</div>
+    <div>
+      <div class="logo-text">漫剧工坊</div>
+      <div class="logo-sub">AI IP孵化系统</div>
+    </div>
+  </div>
+
+  <div class="nav-item active" onclick="navigate('dashboard')">
+    <span class="nav-icon">📊</span>仪表盘
+  </div>
+  <div class="nav-item" onclick="navigate('ip-manager')">
+    <span class="nav-icon">🎭</span>IP管理
+    <span class="nav-badge" id="navIpCount">0</span>
+  </div>
+  <div class="nav-item" onclick="navigate('creator')">
+    <span class="nav-icon">✨</span>角色卡工坊
+  </div>
+  <div class="nav-item" onclick="navigate('production')">
+    <span class="nav-icon">⚡</span>生产中心
+  </div>
+  <div class="nav-item" onclick="navigate('library')">
+    <span class="nav-icon">🎞️</span>剧集库
+  </div>
+  <div class="nav-item" onclick="navigate('qc-reports')">
+    <span class="nav-icon">🔍</span>质检报告
+  </div>
+  <div class="nav-item" onclick="navigate('ipvalue')">
+    <span class="nav-icon">💎</span>IP价值判断
+  </div>
+  <div class="nav-item" onclick="navigate('copyright')">
+    <span class="nav-icon">📜</span>版权备案
+  </div>
+  <div class="nav-item" onclick="navigate('compare')">
+    <span class="nav-icon">📈</span>IP对比
+  </div>
+  <div class="nav-item" onclick="navigate('distribution')">
+    <span class="nav-icon">📢</span>内容分发
+  </div>
+  <div class="nav-item" onclick="navigate('audit')">
+    <span class="nav-icon">📋</span>Prompt审计
+  </div>
+  <div class="nav-item" onclick="navigate('lora')">
+    <span class="nav-icon">🧬</span>LoRA训练
+  </div>
+  <div class="nav-item" onclick="navigate('scheduler')">
+    <span class="nav-icon">⏰</span>自动调度
+  </div>
+  <div class="nav-item" onclick="navigate('evolution')">
+    <span class="nav-icon">🧬</span>剧情进化
+  </div>
+  <div class="nav-item" onclick="navigate('settings')">
+    <span class="nav-icon">⚙️</span>系统设置
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="cost-display">
+      本月生产成本
+      <span class="cost-amount" id="sidebarCost">$0.00</span>
+      <span>≈ ¥<span id="sidebarCostCny">0.00</span></span>
+    </div>
+  </div>
+</nav>
+
+<!-- ════════ 主内容 ════════ -->
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="page-title" id="pageTitle">仪表盘</div>
+      <div class="page-subtitle" id="pageSubtitle">系统概览</div>
+    </div>
+    <div class="topbar-actions" id="topbarActions"></div>
+  </div>
+  <div class="content" id="mainContent"></div>
+</div>
+
+<!-- ════════ 视频播放模态框 ════════ -->
+<div class="modal-overlay" id="videoModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="bold" id="modalTitle">剧集播放</div>
+        <div class="text-dim" style="font-size:12px" id="modalMeta"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <video class="video-player" id="videoPlayer" controls autoplay></video>
+      <div class="modal-info" id="modalInfo"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ Toast容器 ════════ -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ════════ 脚本（按依赖顺序加载） ════════ -->
+<script src="js/utils.js"></script>
+<script src="js/app.js"></script>
+<script src="js/pages/dashboard.js"></script>
+<script src="js/pages/ip-manager.js"></script>
+<script src="js/pages/creator.js"></script>
+<script src="js/pages/production.js"></script>
+<script src="js/pages/library.js"></script>
+<script src="js/pages/qc-reports.js"></script>
+<script src="js/pages/settings.js"></script>
+<script src="js/pages/audit.js"></script>
+<script src="js/pages/lora.js"></script>
+<script src="js/pages/scheduler.js"></script>
+<script src="js/pages/ipvalue.js"></script>
+<script src="js/pages/copyright.js"></script>
+<script src="js/pages/compare.js"></script>
+<script src="js/pages/distribution.js"></script>
+<script src="js/pages/evolution.js"></script>
+</body>
+</html>

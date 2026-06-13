@@ -1,0 +1,60 @@
+version: "3.9"
+
+services:
+  # ── API服务（轻量，无 torch） ──
+  manga-studio:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        REQUIREMENTS_FILE: requirements-api.txt
+    container_name: ai-manga-studio
+    expose:
+      - "8000"
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./assets:/app/assets
+      - ./models/lora:/app/models/lora
+      - ./exports:/app/exports
+      - ./logs:/app/logs
+      - ./qc_reports:/app/qc_reports
+    restart: unless-stopped
+
+  # ── 前端（nginx 服务静态文件 + 代理 API） ──
+  frontend:
+    image: nginx:alpine
+    container_name: ai-manga-frontend
+    ports:
+      - "80:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - manga-studio
+    restart: unless-stopped
+
+  # ── LoRA训练器（含 torch，按需启动） ──
+  lora-trainer:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        REQUIREMENTS_FILE: requirements.txt
+    container_name: ai-manga-lora-trainer
+    ports:
+      - "8001:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - LORA_TRAIN_MODE=local
+    volumes:
+      - ./assets:/app/assets
+      - ./models/lora:/app/models/lora
+      - ./exports:/app/exports
+      - ./logs:/app/logs
+      - ./qc_reports:/app/qc_reports
+    # 仅手动启动：docker compose --profile training up lora-trainer
+    profiles:
+      - training
+    restart: unless-stopped

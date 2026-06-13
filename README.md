@@ -108,9 +108,9 @@ python main_app.py
 **前提条件：** Docker Engine 24+ 且已支持 Docker Compose V2。
 
 ```bash
-# 1. 配置 API Key
-cp backend/.env backend/.env.local
-# 编辑 backend/.env.local，填入你的 API Key
+# 1. 配置 API Key（将模板复制为实际配置文件）
+cp backend/.env.example backend/.env
+# 编辑 backend/.env，填入你的 API Key
 
 # 2. 构建并启动
 docker compose up -d

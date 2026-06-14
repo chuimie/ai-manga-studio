@@ -177,7 +177,6 @@ async function testLoraConsistency(ipId) {
 }
 
 // 轮询训练中的IP状态
-let loraPollingTimer = null;
 function startLoraPolling() {
   if (loraPollingTimer) clearInterval(loraPollingTimer);
   loraPollingTimer = setInterval(async () => {

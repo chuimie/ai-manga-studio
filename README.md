@@ -106,6 +106,22 @@ python main_app.py
 #### 方式 2：Docker 部署（推荐）
 
 **前提条件：** Docker Engine 24+。命令 `docker-compose`（v1）或 `docker compose`（v2）任一可用。
+
+#### 方式 3：Docker 开发模式（源码热重载）
+
+源码挂载到容器内，修改后即时生效，无需 rebuild：
+
+```bash
+# 首次需要构建镜像
+docker-compose build manga-studio
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+# 后端 API: http://localhost:8000/docs（带 --reload）
+# 前端页面: http://localhost:80
+
+# 查看日志
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml logs -f
+```
 #### LoRA 训练容器
 
 训练需要 PyTorch（~3.5GB），不会随主服务自动启动，按需单独管理：
